@@ -5,6 +5,13 @@
  by `Swing Development <http://swingdev.io/>`_
 -----------------------------------------------
 
+.. image:: https://img.shields.io/pypi/v/git-release-tagger.svg
+    :target: https://pypi.python.org/pypi/git-release-tagger
+
+.. image:: https://img.shields.io/pypi/dm/git-release-tagger.svg
+        :target: https://pypi.python.org/pypi/git-release-tagger
+
+
 Small CLI utility to enable the CI environment to communicate the deployment progress through the use of git tags.
 
 Installation
