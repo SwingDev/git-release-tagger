@@ -1,0 +1,82 @@
+#!/usr/bin/env python
+from git_release_tagger import git_tagger
+from time import strftime
+
+
+class ReleaseTagger(object):
+  POSSIBLE_STATUSES    = ["pending", "deploying", "failed", "success"]
+  TIMESTAMPED_STATUSES = ["success"]
+
+  def __init__(self, args):
+    self.status  = args.status
+    self.prefix  = args.prefix
+    self.trigger = args.trigger
+
+  def timestamp(self):
+    return strftime("%Y-%m-%d_%H_%M_%S")
+
+  def tag_dicts_for_options(self, prefix, status):
+    tag_dicts = []
+
+    tag_opts = {
+      'prefix': prefix,
+      'status': status,
+      'timestamp': self.timestamp()
+    }
+
+    tag_dicts.append({
+      'tag': "{prefix}_{status}".format(**tag_opts),
+      'perishable': True
+    })
+
+    if status in self.TIMESTAMPED_STATUSES:
+      tag_dicts.append({
+        'tag': "{prefix}_{status}_{timestamp}".format(**tag_opts),
+        'perishable': False
+      })
+
+    return tag_dicts
+
+  def tags_to_add(self):
+    return set([ tag_dict['tag'] for tag_dict in self.tag_dicts_for_options(self.prefix, self.status) ])
+
+  def tags_that_should_not_exist(self):
+    tags_that_should_not_exist = set()
+
+    # Trigger tag.
+    if self.trigger:
+      tags_that_should_not_exist.add(self.trigger)
+
+    # All possible perishable tags.
+    for status in self.POSSIBLE_STATUSES:
+      tags_that_should_not_exist |= set([ tag_dict['tag'] for tag_dict in self.tag_dicts_for_options(self.prefix, status) if tag_dict['perishable'] ])
+
+    # All tags we'll add in a moment.
+    tags_that_should_not_exist |= self.tags_to_add()
+
+    return tags_that_should_not_exist
+
+
+# Parse args
+import argparse
+parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument("prefix", help="tag prefix")
+parser.add_argument("status", help="release status", choices=ReleaseTagger.POSSIBLE_STATUSES)
+parser.add_argument("-t", '--trigger', help="trigger tag")
+parser.add_argument("-v", "--verbose", help="verbose output", action="store_true")
+parser.add_argument("-m", "--message", help="tag message", action="store")
+args = parser.parse_args()
+
+# Tag release
+release_tagger = ReleaseTagger(args)
+
+try:
+  tags_to_remove = release_tagger.tags_that_should_not_exist() & set(git_tagger.list_tags())
+
+  git_tagger.remove_tags(tags_to_remove, cmd_options={ 'ignore_status_codes': True, 'verbose': args.verbose })
+  for tag in release_tagger.tags_to_add():
+    git_tagger.add_tag(tag, cmd_options={ 'verbose': args.verbose })
+
+  git_tagger.push_tags(cmd_options={ 'verbose': args.verbose })
+except git_tagger.FailureStatusCodeException as e:
+  print "Git exception occured: ", e
