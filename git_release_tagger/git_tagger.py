@@ -42,7 +42,7 @@ def remove_tags(tags, cmd_options={}):
     return
 
   commands = [
-    "git push --delete origin {}".format(
+    "git push --no-verify --delete origin {}".format(
       " ".join(["'{}'".format(tag) for tag in tags])
     )
   ]
@@ -54,5 +54,5 @@ def remove_tags(tags, cmd_options={}):
     _run_command(command, **cmd_options)
 
 def push_tags(cmd_options={}):
-  command = "git push --tags"
+  command = "git push --no-verify --tags"
   _run_command(command, **cmd_options)
